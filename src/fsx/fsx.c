@@ -1767,21 +1767,21 @@ main(int argc, char **argv)
 		}
 		maxfilelen &= ~(datasize - 1); // round down to multiple of datasize
 	}
-	good_buf = (char *) malloc(file_size);
-	memset(good_buf, '\0', file_size);
+	good_buf = (char *) malloc(maxfilelen);
+	memset(good_buf, '\0', maxfilelen);
 	temp_buf = (char *) malloc(maxoplen);
 	memset(temp_buf, '\0', maxoplen);
 	if (lite) {	/* zero entire existing file */
 		ssize_t written;
 
-		written = write(fd, good_buf, (size_t)file_size);
-		if (written != file_size) {
+		written = write(fd, good_buf, (size_t)maxfilelen);
+		if (written != maxfilelen) {
 			if (written == -1) {
 				prterr(fname);
 				mwarn("WARNING: main: error on write");
 			} else
 				mwarn("WARNING: main: short write, 0x%x bytes instead of 0x%x\n",
-						(unsigned)written, file_size);
+						(unsigned)written, maxfilelen);
 			exit(98);
 		}
 	} else 
