@@ -1,0 +1,21 @@
+2.1 [01/16/06]
+* George Colley: Added "windows_volume"/"windows98" & "no_unlink_open_files" flags
+* Log file handling bug fixes
+
+2.0 [11/30/05]
+Added XILog functionality; cleaned up error handling
+Added lots of options
+Removed "Kill this PID on error" argument (but we're still backwards-compatible)
+Added XIPing
+
+1.7 [11/17/05]
+Check volume capabilities for soft/hard links and ACLs
+
+1.6 [11/07/05]
+soft/hard links added
+
+1.5 [10/27/05]
+Unlinked files support
+
+1.4 [10/13/05]
+ACL support added

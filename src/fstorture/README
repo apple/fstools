@@ -1,0 +1,191 @@
+This is the README file for fstorture, a test program written to find bugs
+in Sharity. This test program performs random operations on the filesystem
+and verifies the results.
+
+WARNING: This program may crash your machine! See section "Known Problems"
+for details!
+
+
+What is fstorture?
+==================
+fstorture performs the following filesystem operations in a reasonable (but
+still random) order with reasonable parameters and verifies the results:
+  - creat()
+  - mkdir()
+  - open()
+  - close()
+  - read()
+  - write()
+  - truncate()
+  - ftruncate()
+  - chmod()
+  - stat()
+  - rename()
+  - unlink()
+This is done in parallel from a given number of processes.
+fstorture is not user friendly and not distributed in binary versions,
+because it is intended for developers. If no problems are found, nothing
+will be printed. If you want to know the details of the test procedure,
+please look into the source code.
+
+In addition to fstorture, this package contains the shell script
+"testPerformance". This script performs some trivial performance tests on a
+given directory (which is assumed to be located on a remote server). It
+takes the path to the directory as a parameter and prints out the
+performance statistics.
+
+
+Commandline parameters
+======================
+The usage of fstorture is:
+
+    fstorture <root-dir1> <root-dir2> <number of processes> [<options>]
+
+The <root-dir1> and <root-dir2> are the directories where the
+filesystem test will be performed. There are two root directories
+to better test cross-directory renames.  The root directories must
+exist and must be empty before fstorture is started. <number of
+processes> is the number of parallel running processes that will
+be used for the test.  Each process operates on only one file or
+subdirectory at a time. You should choose this number appropriate
+for your system. Higher numbers mean more testing but can put a
+heavy load on the operating system. Good numbers are in the range
+of 5 to 100, depending on the load your kernel can take. <options>
+are options that modify the way certain tests are performed or that
+switch off certain tests.  It may be necessary to use these options
+to compensate for operating system bugs, different ideas of how
+things should work or different semantics.
+
+Available options:
+------------------    
+* fsync_before_ftruncate
+    It seems as if the truncate functionality were implemented totally
+    independent of the rest of the filesystem functions on some
+    operating systems. For instance, it may happen that a truncate
+    operation "overtakes" a write operation. The sequence
+        write(offset=1000, length=1000)
+        truncate(500)
+    may in fact be executed as
+        truncate(500)
+        write(offset=1000, length=1000)
+    which results in a completely different file, of course. To work
+    around this operating system bug, you can define
+    "fsync_before_ftruncate". If this parameter is passed to fstorture,
+    it executes an fsync() before every truncate() or ftruncate().
+
+* no_rename_open_files
+    Unix semantics allow to rename files while they are still open.
+    Reads and writes will go to the same file even after renaming.
+    Older versions of Sharity do not provide this behaviour and reads
+    and writes to the old file will fail. If you test an older version
+    of Sharity, add this option.
+
+* no_test_dirs
+    fstorture also creates, renames and destroys directories during
+    the test. The directories are populated with open files, even during
+    renames. This is a hard test for the filing system and there are
+    operating systems that introduce structural errors on the hard
+    drive if this test is performed (on the hard drive, of course). If
+    you don't want to perform the directory test, add this option.
+
+
+Setting up a Test
+=================
+Before you start testing, you should be aware of several facts. You are
+testing the entire filesystem between the application and the disk. In the
+case of Sharity this consists of the system call library, the nfs client
+in the kernel, the Sharity daemon, the CIFS/SMB-server software and the
+filesystem on the kernel. If an error occures, it may be in any of these
+components.
+
+Before you start testing Sharity, please make sure the other
+components work appropriately. First you should try fstorture on the local
+filesystem. There you can verify whether your OS has bugs. If you find one,
+you can disable the specific test or aspect of the test.
+
+If that works, try it on an NFS mounted directory. This tests the local
+filesystem code, the NFS client in the kernel and the NFS server. If no
+problems occure, you can switch over to Sharity. Always start with a low
+number of parallel processes until you become more confident.
+
+
+Known Problems
+==============
+Here is a list of known problems in clients, servers and Sharity:
+
+NEXTSTEP, OPENSTEP/Mach operating system:
+-----------------------------------------
+Never try fstorture with the directory test enabled on NEXTSTEP! It will
+destroy parts of the filesystem structure and you will have to perform
+a manual disk check (which resulted in a kernel panic when I did it....).
+
+The NFS client code is buggy. You will always read incorrect file sizes with
+any NFS server. After some minutes or even seconds of test with any NFS
+server, the system will freeze.
+
+Linux operating system:
+-----------------------
+No known bugs. If you are low on real memory (RAM), the kernel
+might get into trouble being inable to get real memory.  The system
+may freeze in this case.
+
+Windows NT server:
+------------------
+NT does not always give correct file sizes. In fact, the file size is almost
+always wrong if the file has been written to recently. NT probably does
+writeback caching and returns the size of the file on disk instead of the
+logical size determined by the cache. Sharity tries to work around this
+problem, but it might fail sometimes. NT does not always send OPLOCK breaks
+when it should. This made older versions of Sharity fail on some rename
+operations. Newer versions of Sharity don't rely on OPLOCKs for renames,
+but the bug might still be a problem if some clients access the same file
+concurrently.
+
+Windows 95 server:
+------------------
+The CIFS/SMB server code in Win 95 is, well, very buggy. There are the same
+bugs as with Win NT and others related to write protection semantics.
+Sharity can not always work around these problems, although it tries
+everything that is possible. It is, for instance, impossible to have a file
+open for write that is write protected. If this is required from the
+Unix side, the file is simply un-writeprotected transparently. The file will
+then stat with wrong write protection status, of course. The workaround
+for the "wrong filesize" bug also does not work as good as for NT because
+Win 95 does not support oplocks. 
+
+Sharity:
+--------
+Sharity has two possible options for the file lookup strategy (see the
+manual, section "configuration file" for details). One provides real
+Unix-like semantics (the "database" option) and the other does not allow
+renaming open files (the "pseudoInode" option). If you test Sharity with
+the "pseudoInode" option, you should use the options no_rename_open_files
+and no_test_dirs. On Solaris you will see errors even with these options due
+to a bug in the writeback cache implementation of the Solaris NFS client.
+
+
+Note for Developers
+===================
+This program is not supported software, it is also not a reference for
+good programming style, but it's a real quick hack. It has limited
+complexity and should do it's job quite well. It's not intended to be
+easily portable, although it probably is due to the low number of system
+calls needed. I have tested it on NEXTSTEP, OPENSTEP/Mach and Linux, others
+probably need some porting. fstorture is probably not bug-free, although
+I have gone through all of the code several times.
+
+General Disclaimer
+==================
+Be prepared for the worst! The sentence "This software may
+damage your machine or kill your hamster", usually inserted as default
+disclaimer, has to be taken seriously with fstorture! It's built to trigger
+problems in the filesystem! For the exact wording of the disclaimer please
+consult the GNU General Public License.
+
+
+---
+Contact information:
+e-mail: office@obdev.at
+www:    http://www.obdev.at/
+Author: Christian Starkjohann <cs@obdev.at>
+
