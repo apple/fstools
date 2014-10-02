@@ -24,12 +24,13 @@
 
 # USE XILOG
 #CFLAGS= -Wall -g -O0 -DXILOG -F/AppleInternal/Library/Frameworks
-ARCHES= -arch ppc -arch i386 -arch x86_64
-CFLAGS= $(ARCHES) -Wall -O3 -DXILOG -F/AppleInternal/Library/Frameworks
-LDFLAGS= -framework XILog
+#ARCHES= -arch ppc -arch i386 -arch x86_64
+ARCHES= -arch x86_64
+#CFLAGS= $(ARCHES) -Wall -O3 -DXILOG -F/AppleInternal/Library/Frameworks
+#LDFLAGS= -framework XILog
 
 # DON'T USE XILOG
-#CFLAGS= -Wall -O3 -fomit-frame-pointer
+CFLAGS= -Wall -O3 -fomit-frame-pointer
 
 # For Linux add:
 # LIBS = -lm
