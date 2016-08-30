@@ -1,0 +1,2028 @@
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ Makefile	2015-01-19 08:25:29.000000000 -0500
+@@ -0,0 +1,53 @@
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++.PHONY: check
++
++PROVE=prove
++OPSYS:=$(shell uname -s)
++
++TSTS=fsx_smoketest_alloplen.sh \
++	fsx_smoketest_datasize.sh \
++	fsx_smoketest_dirpath.sh \
++	fsx_smoketest_flen.sh \
++	fsx_smoketest_fsync.sh \
++	fsx_smoketest_interactive_later.sh \
++	fsx_smoketest_interactive_start.sh \
++	fsx_smoketest_logpath.sh \
++	fsx_smoketest_mixedcache.sh \
++	fsx_smoketest_nomapread.sh \
++	fsx_smoketest_nomapwrite.sh \
++	fsx_smoketest_nommap.sh \
++	fsx_smoketest_openclosechance.sh \
++	fsx_smoketest_opnum.sh \
++	fsx_smoketest_progressinterval.sh \
++	fsx_smoketest_quieter.sh \
++	fsx_smoketest_readbdy.sh \
++	fsx_smoketest_sanity.sh \
++	fsx_smoketest_startingop.sh \
++	fsx_smoketest_style.sh \
++	fsx_smoketest_truncbdy.sh \
++	fsx_smoketest_upperoplen.sh \
++	fsx_smoketest_writebdy.sh \
++	fsx_smoketest_xmlout.sh
++
++ifeq ($(OPSYS),Darwin)
++TSTS+=fsx_smoketest_extented.sh
++else
++TSTS+=fsx_smoketest_extented_enosys.sh
++endif
++
++check: $(TSTS)
++	$(PROVE) $^
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_alloplen.sh	2015-01-19 08:25:32.000000000 -0500
+@@ -0,0 +1,79 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_alloplen () {
++	../fsx -vN13 -Oo1000 -S1 afile 2>&1 > output.txt
++
++	local expected_size="244112"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "25c72ecfc49be6bcd81640df0fdb878dcad0e7df  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -e ./afile.fsxgood -a ! -s .afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++Using file afile
++command line: ../fsx -vN13 -Oo1000 -S1 afile
++Seed set to 1
++extend file size from 0x0 (0) to 0x1a844 (108612)
++truncating to largest ever: 0x1a844
++1: TRUNCATE UP     from 0x0 (0) to 0x1a844 (108612)
++2: MAPWRITE        0x1a45c (107612) thru 0x1a843 (108611)	(0x3e8 (1000) bytes)
++extend file size from 0x1a844 (108612) to 0x39398 (234392)
++truncating to largest ever: 0x39398
++3: TRUNCATE UP     from 0x1a844 (108612) to 0x39398 (234392)
++4: MAPWRITE        0x38fb0 (233392) thru 0x39397 (234391)	(0x3e8 (1000) bytes)
++truncating to largest ever: 0x3cd28
++5: TRUNCATE UP     from 0x39398 (234392) to 0x3cd28 (249128)
++6: WRITE           0x240ec (147692) thru 0x244d3 (148691)	(0x3e8 (1000) bytes)
++7: TRUNCATE DOWN   from 0x3cd28 (249128) to 0x3c0c (15372)
++8: READ            0x46c (1132) thru 0x853 (2131)	(0x3e8 (1000) bytes)
++extend file size from 0x3c0c (15372) to 0x3f424 (259108)
++truncating to largest ever: 0x3f424
++9: TRUNCATE UP     from 0x3c0c (15372) to 0x3f424 (259108)
++10: MAPWRITE        0x3f03c (258108) thru 0x3f423 (259107)	(0x3e8 (1000) bytes)
++11: WRITE           0x75c8 (30152) thru 0x79af (31151)	(0x3e8 (1000) bytes)
++12: MAPWRITE        0x10e60 (69216) thru 0x11247 (70215)	(0x3e8 (1000) bytes)
++13: MAPWRITE        0x2c61c (181788) thru 0x2ca03 (182787)	(0x3e8 (1000) bytes)
++14: WRITE           0x61e4 (25060) thru 0x65cb (26059)	(0x3e8 (1000) bytes)
++15: WRITE           0x355f4 (218612) thru 0x359db (219611)	(0x3e8 (1000) bytes)
++16: TRUNCATE DOWN   from 0x3f424 (259108) to 0x3b990 (244112)
++All operations - 16 - completed A-OK!
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_alloplen () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_alloplen"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -vN13 -Oo1000 -S1 afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_alloplen "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_datasize.sh	2015-01-19 08:25:35.000000000 -0500
+@@ -0,0 +1,74 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_datasize () {
++	../fsx -vN13 -T1 -S2 afile 2>&1 > output.txt
++
++	local expected_size="56947"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "3b259901bede85450f8303ba845b00758747dbbc  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -e ./afile.fsxgood -a ! -s .afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++Using file afile
++command line: ../fsx -vN13 -T1 -S2 afile
++Seed set to 2
++skipping zero size read
++2(2): WRITE           0x35bbc (220092) thru 0x3ffff (262143)	(0xa444 (42052) bytes) HOLE
++extend file size from 0x0 (0) to 0x40000 (262144)
++3(3): MAPWRITE        0x2e5b0 (189872) thru 0x337d7 (210903)	(0x5228 (21032) bytes)
++4(4): MAPREAD         0xe589 (58761) thru 0x1b0cb (110795)	(0xcb43 (52035) bytes)
++5(5): READ            0x11377 (70519) thru 0x13ec6 (81606)	(0x2b50 (11088) bytes)
++truncating to largest ever: 0x316aa
++6(6): TRUNCATE DOWN   from 0x40000 (262144) to 0x316aa (202410)
++7(7): READ            0x5603 (22019) thru 0xbf93 (49043)	(0x6991 (27025) bytes)
++8(8): MAPREAD         0x17036 (94262) thru 0x21df2 (138738)	(0xadbd (44477) bytes)
++extend file size from 0x316aa (202410) to 0x40000 (262144)
++truncating to largest ever: 0x40000
++9(9): TRUNCATE UP     from 0x316aa (202410) to 0x40000 (262144)
++10(10): MAPWRITE        0x398ec (235756) thru 0x3ffff (262143)	(0x6714 (26388) bytes)
++11(11): MAPREAD         0x3e627 (255527) thru 0x3ffff (262143)	(0x19d9 (6617) bytes)
++12(12): READ            0x919d (37277) thru 0x9b1b (39707)	(0x97f (2431) bytes)
++13(13): MAPWRITE        0x1cdd2 (118226) thru 0x1eb12 (125714)	(0x1d41 (7489) bytes)
++14(14): TRUNCATE DOWN   from 0x40000 (262144) to 0xde73 (56947)
++All operations - 14 - completed A-OK!
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_datasize () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_datasize"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -vN13 -T1 -S2 afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_datasize "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_dirpath.sh	2015-01-19 08:25:38.000000000 -0500
+@@ -0,0 +1,74 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_dirpath () {
++	../fsx -vN13 -S1 -Ptmp afile 2>&1 > output.txt
++
++	local expected_size="244112"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "f37dbc993e71e59f04680831c4e12cd3f2f7ebd8  afile" | shasum -c -
++	[ -s tmp/afile.fsxlog ]
++	[ -e tmp/afile.fsxgood -a ! -s tmpafile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++Using file afile
++command line: ../fsx -vN13 -S1 -Ptmp afile
++Seed set to 1
++extend file size from 0x0 (0) to 0x40000 (262144)
++truncating to largest ever: 0x40000
++1: TRUNCATE UP     from 0x0 (0) to 0x40000 (262144)
++2: MAPWRITE        0x3a0d8 (237784) thru 0x3ffff (262143)	(0x5f28 (24360) bytes)
++3: TRUNCATE DOWN   from 0x40000 (262144) to 0x2e344 (189252)
++4: TRUNCATE DOWN   from 0x2e344 (189252) to 0x27c14 (162836)
++5: TRUNCATE UP     from 0x27c14 (162836) to 0x3ee10 (257552)
++6: MAPREAD         0x804c (32844) thru 0xc42f (50223)	(0x43e4 (17380) bytes)
++extend file size from 0x3ee10 (257552) to 0x40000 (262144)
++7: TRUNCATE UP     from 0x3ee10 (257552) to 0x40000 (262144)
++8: MAPWRITE        0x3f83c (260156) thru 0x3ffff (262143)	(0x7c4 (1988) bytes)
++9: MAPWRITE        0x10e60 (69216) thru 0x1826b (98923)	(0x740c (29708) bytes)
++10: MAPWRITE        0x988 (2440) thru 0xc247 (49735)	(0xb8c0 (47296) bytes)
++11: MAPWRITE        0x355f4 (218612) thru 0x3ffff (262143)	(0xaa0c (43532) bytes)
++12: TRUNCATE DOWN   from 0x40000 (262144) to 0x3b990 (244112)
++13: READ            0x2816c (164204) thru 0x32653 (206419)	(0xa4e8 (42216) bytes)
++14: MAPWRITE        0x20564 (132452) thru 0x29cab (171179)	(0x9748 (38728) bytes)
++15: MAPWRITE        0x2893c (166204) thru 0x36b07 (224007)	(0xe1cc (57804) bytes)
++All operations - 15 - completed A-OK!
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_dirpath () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_dirpath"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -vN13 -S1 -Ptmp afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_dirpath "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_extented.sh	2015-01-19 08:25:40.000000000 -0500
+@@ -0,0 +1,68 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_extented () {
++	../fsx -vN13 -S1 -e afile 2>&1 > output.txt
++
++	local expected_size="0"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "da39a3ee5e6b4b0d3255bfef95601890afd80709  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -e ./afile.fsxgood -a ! -s .afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++Writing into extended attribute
++Using file afile
++command line: ../fsx -vN13 -S1 -e afile
++Seed set to 1
++skipping zero size read
++skipping zero size read
++skipping zero size read
++4: WRITE           0x0 (0) thru 0x713 (1811)	(0x714 (1812) bytes) EXTEND
++extend file size from 0x0 (0) to 0x714 (1812)
++5: READ            0x0 (0) thru 0x713 (1811)	(0x714 (1812) bytes)
++6: WRITE           0x0 (0) thru 0xacf (2767)	(0xad0 (2768) bytes) EXTEND
++extend file size from 0x714 (1812) to 0xad0 (2768)
++7: WRITE           0x0 (0) thru 0xbeb (3051)	(0xbec (3052) bytes) EXTEND
++extend file size from 0xad0 (2768) to 0xbec (3052)
++8: WRITE           0x0 (0) thru 0x77f (1919)	(0x780 (1920) bytes)
++All operations - 13 - completed A-OK!
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_extented () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_extented"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -vN13 -S1 -e afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_extented "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_extented_enosys.sh	2015-01-19 08:25:44.000000000 -0500
+@@ -0,0 +1,65 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_extented_enosys () {
++	../fsx -vN13 -S1 -e afile 2>&1 > output.txt || true
++
++	local expected_size="0"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "da39a3ee5e6b4b0d3255bfef95601890afd80709  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -s ./afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++Writing into extended attribute
++Using file afile
++command line: ../fsx -vN13 -S1 -e afile
++Seed set to 1
++skipping zero size read
++skipping zero size read
++skipping zero size read
++4: WRITE           0x0 (0) thru 0x713 (1811)	(0x714 (1812) bytes) EXTEND
++extend file size from 0x0 (0) to 0x714 (1812)
++ea_dowrite: setxattr: Function not implemented
++Correct content saved for comparison
++(maybe hexdump "afile" vs "afile.fsxgood")
++Seed was set to 1
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_extented_enosys () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_extented_enosys"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -vN13 -S1 -e afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_extented_enosys "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_flen.sh	2015-01-19 08:25:46.000000000 -0500
+@@ -0,0 +1,77 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_flen () {
++	../fsx -vN13 -F162140 -S1 afile 2>&1 > output.txt
++
++	local expected_size="136692"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "555fe741647ada38fc8658443cb87e1baf05febc  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -e ./afile.fsxgood -a ! -s .afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++Using file afile
++command line: ../fsx -vN13 -F162140 -S1 afile
++Seed set to 1
++extend file size from 0x0 (0) to 0x1b43c (111676)
++truncating to largest ever: 0x1b43c
++1: TRUNCATE UP     from 0x0 (0) to 0x1b43c (111676)
++2: MAPWRITE        0x13520 (79136) thru 0x1b43b (111675)	(0x7f1c (32540) bytes)
++3: TRUNCATE DOWN   from 0x1b43c (111676) to 0x8d50 (36176)
++4: TRUNCATE UP     from 0x8d50 (36176) to 0xf9d4 (63956)
++5: TRUNCATE UP     from 0xf9d4 (63956) to 0x10acc (68300)
++6: MAPREAD         0x2610 (9744) thru 0x69f3 (27123)	(0x43e4 (17380) bytes)
++extend file size from 0x10acc (68300) to 0x2795c (162140)
++truncating to largest ever: 0x2795c
++7: TRUNCATE UP     from 0x10acc (68300) to 0x2795c (162140)
++8: MAPWRITE        0x25030 (151600) thru 0x2795b (162139)	(0x292c (10540) bytes)
++9: MAPWRITE        0x1bd6c (114028) thru 0x23177 (143735)	(0x740c (29708) bytes)
++10: MAPWRITE        0x52bc (21180) thru 0x10b7b (68475)	(0xb8c0 (47296) bytes)
++11: MAPWRITE        0x19c20 (105504) thru 0x27327 (160551)	(0xd708 (55048) bytes)
++12: TRUNCATE DOWN   from 0x2795c (162140) to 0x16260 (90720)
++13: READ            0x241c (9244) thru 0xc903 (51459)	(0xa4e8 (42216) bytes)
++extend file size from 0x16260 (90720) to 0x215f4 (136692)
++14: TRUNCATE UP     from 0x16260 (90720) to 0x215f4 (136692)
++15: MAPWRITE        0x17eac (97964) thru 0x215f3 (136691)	(0x9748 (38728) bytes)
++16: MAPWRITE        0xcc (204) thru 0xe297 (58007)	(0xe1cc (57804) bytes)
++All operations - 16 - completed A-OK!
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_flen () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_flen"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -vN13 -F162140 -S1 afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_flen "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_fsync.sh	2015-01-19 08:25:49.000000000 -0500
+@@ -0,0 +1,74 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_fsync () {
++	../fsx -vN13 -S1 -y afile 2>&1 > output.txt
++
++	local expected_size="244112"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "f37dbc993e71e59f04680831c4e12cd3f2f7ebd8  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -e ./afile.fsxgood -a ! -s .afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++Using file afile
++command line: ../fsx -vN13 -S1 -y afile
++Seed set to 1
++extend file size from 0x0 (0) to 0x40000 (262144)
++truncating to largest ever: 0x40000
++1: TRUNCATE UP     from 0x0 (0) to 0x40000 (262144)
++2: MAPWRITE        0x3a0d8 (237784) thru 0x3ffff (262143)	(0x5f28 (24360) bytes)
++3: TRUNCATE DOWN   from 0x40000 (262144) to 0x2e344 (189252)
++4: TRUNCATE DOWN   from 0x2e344 (189252) to 0x27c14 (162836)
++5: TRUNCATE UP     from 0x27c14 (162836) to 0x3ee10 (257552)
++6: MAPREAD         0x804c (32844) thru 0xc42f (50223)	(0x43e4 (17380) bytes)
++extend file size from 0x3ee10 (257552) to 0x40000 (262144)
++7: TRUNCATE UP     from 0x3ee10 (257552) to 0x40000 (262144)
++8: MAPWRITE        0x3f83c (260156) thru 0x3ffff (262143)	(0x7c4 (1988) bytes)
++9: MAPWRITE        0x10e60 (69216) thru 0x1826b (98923)	(0x740c (29708) bytes)
++10: MAPWRITE        0x988 (2440) thru 0xc247 (49735)	(0xb8c0 (47296) bytes)
++11: MAPWRITE        0x355f4 (218612) thru 0x3ffff (262143)	(0xaa0c (43532) bytes)
++12: TRUNCATE DOWN   from 0x40000 (262144) to 0x3b990 (244112)
++13: READ            0x2816c (164204) thru 0x32653 (206419)	(0xa4e8 (42216) bytes)
++14: MAPWRITE        0x20564 (132452) thru 0x29cab (171179)	(0x9748 (38728) bytes)
++15: MAPWRITE        0x2893c (166204) thru 0x36b07 (224007)	(0xe1cc (57804) bytes)
++All operations - 15 - completed A-OK!
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_fsync () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_fsync"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -vN13 -S1 -y afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_fsync "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_interactive_later.sh	2015-01-19 08:25:52.000000000 -0500
+@@ -0,0 +1,74 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_interactive_later () {
++	yes | ../fsx -vN13 -S1 -I3 afile 2>&1 > output.txt
++
++	local expected_size="244112"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "f37dbc993e71e59f04680831c4e12cd3f2f7ebd8  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -e ./afile.fsxgood -a ! -s .afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++Using file afile
++command line: ../fsx -vN13 -S1 -I3 afile
++Seed set to 1
++extend file size from 0x0 (0) to 0x40000 (262144)
++truncating to largest ever: 0x40000
++1: TRUNCATE UP     from 0x0 (0) to 0x40000 (262144)
++2: MAPWRITE        0x3a0d8 (237784) thru 0x3ffff (262143)	(0x5f28 (24360) bytes)
++3: TRUNCATE DOWN   from 0x40000 (262144) to 0x2e344 (189252)
++4: TRUNCATE DOWN   from 0x2e344 (189252) to 0x27c14 (162836)
++Hit return when ready...5: TRUNCATE UP     from 0x27c14 (162836) to 0x3ee10 (257552)
++Hit return when ready...6: MAPREAD         0x804c (32844) thru 0xc42f (50223)	(0x43e4 (17380) bytes)
++Hit return when ready...extend file size from 0x3ee10 (257552) to 0x40000 (262144)
++7: TRUNCATE UP     from 0x3ee10 (257552) to 0x40000 (262144)
++Hit return when ready...8: MAPWRITE        0x3f83c (260156) thru 0x3ffff (262143)	(0x7c4 (1988) bytes)
++Hit return when ready...9: MAPWRITE        0x10e60 (69216) thru 0x1826b (98923)	(0x740c (29708) bytes)
++Hit return when ready...10: MAPWRITE        0x988 (2440) thru 0xc247 (49735)	(0xb8c0 (47296) bytes)
++Hit return when ready...11: MAPWRITE        0x355f4 (218612) thru 0x3ffff (262143)	(0xaa0c (43532) bytes)
++Hit return when ready...12: TRUNCATE DOWN   from 0x40000 (262144) to 0x3b990 (244112)
++Hit return when ready...13: READ            0x2816c (164204) thru 0x32653 (206419)	(0xa4e8 (42216) bytes)
++Hit return when ready...14: MAPWRITE        0x20564 (132452) thru 0x29cab (171179)	(0x9748 (38728) bytes)
++Hit return when ready...15: MAPWRITE        0x2893c (166204) thru 0x36b07 (224007)	(0xe1cc (57804) bytes)
++Hit return when ready...All operations - 15 - completed A-OK!
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_interactive_later () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_interactive_later"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -vN13 -S1 -I3 afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_interactive_later "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_interactive_start.sh	2015-01-19 08:25:54.000000000 -0500
+@@ -0,0 +1,74 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_interactive_start () {
++	yes | ../fsx -vN13 -S1 -i afile 2>&1 > output.txt
++
++	local expected_size="244112"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "f37dbc993e71e59f04680831c4e12cd3f2f7ebd8  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -e ./afile.fsxgood -a ! -s .afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++Using file afile
++command line: ../fsx -vN13 -S1 -i afile
++Seed set to 1
++extend file size from 0x0 (0) to 0x40000 (262144)
++truncating to largest ever: 0x40000
++1: TRUNCATE UP     from 0x0 (0) to 0x40000 (262144)
++Hit return when ready...2: MAPWRITE        0x3a0d8 (237784) thru 0x3ffff (262143)	(0x5f28 (24360) bytes)
++Hit return when ready...3: TRUNCATE DOWN   from 0x40000 (262144) to 0x2e344 (189252)
++Hit return when ready...4: TRUNCATE DOWN   from 0x2e344 (189252) to 0x27c14 (162836)
++Hit return when ready...5: TRUNCATE UP     from 0x27c14 (162836) to 0x3ee10 (257552)
++Hit return when ready...6: MAPREAD         0x804c (32844) thru 0xc42f (50223)	(0x43e4 (17380) bytes)
++Hit return when ready...extend file size from 0x3ee10 (257552) to 0x40000 (262144)
++7: TRUNCATE UP     from 0x3ee10 (257552) to 0x40000 (262144)
++Hit return when ready...8: MAPWRITE        0x3f83c (260156) thru 0x3ffff (262143)	(0x7c4 (1988) bytes)
++Hit return when ready...9: MAPWRITE        0x10e60 (69216) thru 0x1826b (98923)	(0x740c (29708) bytes)
++Hit return when ready...10: MAPWRITE        0x988 (2440) thru 0xc247 (49735)	(0xb8c0 (47296) bytes)
++Hit return when ready...11: MAPWRITE        0x355f4 (218612) thru 0x3ffff (262143)	(0xaa0c (43532) bytes)
++Hit return when ready...12: TRUNCATE DOWN   from 0x40000 (262144) to 0x3b990 (244112)
++Hit return when ready...13: READ            0x2816c (164204) thru 0x32653 (206419)	(0xa4e8 (42216) bytes)
++Hit return when ready...14: MAPWRITE        0x20564 (132452) thru 0x29cab (171179)	(0x9748 (38728) bytes)
++Hit return when ready...15: MAPWRITE        0x2893c (166204) thru 0x36b07 (224007)	(0xe1cc (57804) bytes)
++Hit return when ready...All operations - 15 - completed A-OK!
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_interactive_start () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_interactive_start"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -vN13 -S1 -i afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_interactive_start "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_logpath.sh	2015-01-19 08:25:57.000000000 -0500
+@@ -0,0 +1,74 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_logpath () {
++	../fsx -vN13 -S1 -ltmp afile 2>&1 > output.txt
++
++	local expected_size="244112"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "f37dbc993e71e59f04680831c4e12cd3f2f7ebd8  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -e ./afile.fsxgood -a ! -s .afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++Using file afile
++command line: ../fsx -vN13 -S1 -ltmp afile
++Seed set to 1
++extend file size from 0x0 (0) to 0x40000 (262144)
++truncating to largest ever: 0x40000
++1: TRUNCATE UP     from 0x0 (0) to 0x40000 (262144)
++2: MAPWRITE        0x3a0d8 (237784) thru 0x3ffff (262143)	(0x5f28 (24360) bytes)
++3: TRUNCATE DOWN   from 0x40000 (262144) to 0x2e344 (189252)
++4: TRUNCATE DOWN   from 0x2e344 (189252) to 0x27c14 (162836)
++5: TRUNCATE UP     from 0x27c14 (162836) to 0x3ee10 (257552)
++6: MAPREAD         0x804c (32844) thru 0xc42f (50223)	(0x43e4 (17380) bytes)
++extend file size from 0x3ee10 (257552) to 0x40000 (262144)
++7: TRUNCATE UP     from 0x3ee10 (257552) to 0x40000 (262144)
++8: MAPWRITE        0x3f83c (260156) thru 0x3ffff (262143)	(0x7c4 (1988) bytes)
++9: MAPWRITE        0x10e60 (69216) thru 0x1826b (98923)	(0x740c (29708) bytes)
++10: MAPWRITE        0x988 (2440) thru 0xc247 (49735)	(0xb8c0 (47296) bytes)
++11: MAPWRITE        0x355f4 (218612) thru 0x3ffff (262143)	(0xaa0c (43532) bytes)
++12: TRUNCATE DOWN   from 0x40000 (262144) to 0x3b990 (244112)
++13: READ            0x2816c (164204) thru 0x32653 (206419)	(0xa4e8 (42216) bytes)
++14: MAPWRITE        0x20564 (132452) thru 0x29cab (171179)	(0x9748 (38728) bytes)
++15: MAPWRITE        0x2893c (166204) thru 0x36b07 (224007)	(0xe1cc (57804) bytes)
++All operations - 15 - completed A-OK!
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_logpath () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_logpath"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -vN13 -S1 -ltmp afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_logpath "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_mixedcache.sh	2015-01-19 08:25:59.000000000 -0500
+@@ -0,0 +1,76 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_mixedcache () {
++	../fsx -vN13 -S1 -C afile 2>&1 > output.txt
++
++	local expected_size="224008"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "b8cc66d08aec64b6f796c6b4a859264a02fc2605  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -e ./afile.fsxgood -a ! -s .afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++Using file afile
++command line: ../fsx -vN13 -S1 -C afile
++Seed set to 1
++extend file size from 0x0 (0) to 0x40000 (262144)
++truncating to largest ever: 0x40000
++1: TRUNCATE UP     from 0x0 (0) to 0x40000 (262144)
++2: MAPWRITE        0x3a0d8 (237784) thru 0x3ffff (262143)	(0x5f28 (24360) bytes)
++3: TRUNCATE DOWN   from 0x40000 (262144) to 0x2e344 (189252)
++4: TRUNCATE DOWN   from 0x2e344 (189252) to 0x27c14 (162836)
++5: TRUNCATE UP     from 0x27c14 (162836) to 0x3ee10 (257552)
++6: MAPREAD         0x804c (32844) thru 0xc42f (50223)	(0x43e4 (17380) bytes)
++extend file size from 0x3ee10 (257552) to 0x40000 (262144)
++7: TRUNCATE UP     from 0x3ee10 (257552) to 0x40000 (262144)
++8: MAPWRITE        0x3f83c (260156) thru 0x3ffff (262143)	(0x7c4 (1988) bytes)
++9: MAPWRITE        0x10e60 (69216) thru 0x1826b (98923)	(0x740c (29708) bytes)
++10: MAPWRITE        0x988 (2440) thru 0xc247 (49735)	(0xb8c0 (47296) bytes)
++11: MAPWRITE        0x355f4 (218612) thru 0x3ffff (262143)	(0xaa0c (43532) bytes)
++12: TRUNCATE DOWN   from 0x40000 (262144) to 0x3b990 (244112)
++13: READ            0x2816c (164204) thru 0x32653 (206419)	(0xa4e8 (42216) bytes)
++14: TRUNCATE DOWN   from 0x3b990 (244112) to 0x20568 (132456)
++extend file size from 0x20568 (132456) to 0x36b08 (224008)
++15: TRUNCATE UP     from 0x20568 (132456) to 0x36b08 (224008)
++16: MAPWRITE        0x2893c (166204) thru 0x36b07 (224007)	(0xe1cc (57804) bytes)
++All operations - 16 - completed A-OK!
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_mixedcache () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_mixedcache"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -vN13 -S1 -C afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_mixedcache "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_nomapread.sh	2015-01-19 08:26:03.000000000 -0500
+@@ -0,0 +1,74 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_nomapread () {
++	../fsx -vN13 -R -S2 afile 2>&1 > output.txt
++
++	local expected_size="56948"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "0d197fef6fff76e96a8827a1194d737c403830ef  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -e ./afile.fsxgood -a ! -s .afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++Using file afile
++command line: ../fsx -vN13 -R -S2 afile
++Seed set to 2
++skipping zero size read
++2: WRITE           0x35bbc (220092) thru 0x3ffff (262143)	(0xa444 (42052) bytes) HOLE
++extend file size from 0x0 (0) to 0x40000 (262144)
++3: MAPWRITE        0x2e5b0 (189872) thru 0x337d7 (210903)	(0x5228 (21032) bytes)
++4: READ            0xe588 (58760) thru 0x1b0cb (110795)	(0xcb44 (52036) bytes)
++5: READ            0x11374 (70516) thru 0x13ec3 (81603)	(0x2b50 (11088) bytes)
++truncating to largest ever: 0x316ac
++6: TRUNCATE DOWN   from 0x40000 (262144) to 0x316ac (202412)
++7: READ            0x18ac (6316) thru 0x823f (33343)	(0x6994 (27028) bytes)
++8: READ            0x13e38 (81464) thru 0x1ebf7 (125943)	(0xadc0 (44480) bytes)
++extend file size from 0x316ac (202412) to 0x40000 (262144)
++truncating to largest ever: 0x40000
++9: TRUNCATE UP     from 0x316ac (202412) to 0x40000 (262144)
++10: MAPWRITE        0x398ec (235756) thru 0x3ffff (262143)	(0x6714 (26388) bytes)
++11: READ            0x3e624 (255524) thru 0x3ffff (262143)	(0x19dc (6620) bytes)
++12: READ            0x919c (37276) thru 0x9b1b (39707)	(0x980 (2432) bytes)
++13: MAPWRITE        0x1cdd0 (118224) thru 0x1eb13 (125715)	(0x1d44 (7492) bytes)
++14: TRUNCATE DOWN   from 0x40000 (262144) to 0xde74 (56948)
++All operations - 14 - completed A-OK!
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_nomapread () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_nomapread"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -vN13 -R -S2 afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_nomapread "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_nomapwrite.sh	2015-01-19 08:26:06.000000000 -0500
+@@ -0,0 +1,72 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_nomapwrite () {
++	../fsx -vN13 -W -S2 afile 2>&1 > output.txt
++
++	local expected_size="118228"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "3a772290abcf826038ab228e75081523929619fd  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -e ./afile.fsxgood -a ! -s .afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++mapped writes DISABLED
++Using file afile
++command line: ../fsx -vN13 -W -S2 afile
++Seed set to 2
++truncating to largest ever: 0x2e124
++1: TRUNCATE UP     from 0x0 (0) to 0x2e124 (188708)
++2: WRITE           0xfc38 (64568) thru 0x111e3 (70115)	(0x15ac (5548) bytes)
++3: READ            0x720 (1824) thru 0xe317 (58135)	(0xdbf8 (56312) bytes)
++4: READ            0x15564 (87396) thru 0x1b647 (112199)	(0x60e4 (24804) bytes)
++5: WRITE           0x3544 (13636) thru 0x12dcb (77259)	(0xf888 (63624) bytes)
++6: TRUNCATE DOWN   from 0x2e124 (188708) to 0x16810 (92176)
++7: MAPREAD         0x11a74 (72308) thru 0x1680f (92175)	(0x4d9c (19868) bytes)
++8: TRUNCATE DOWN   from 0x16810 (92176) to 0xbd0 (3024)
++9: MAPREAD         0x91c (2332) thru 0xbcf (3023)	(0x2b4 (692) bytes)
++10: READ            0xa80 (2688) thru 0xbcf (3023)	(0x150 (336) bytes)
++11: READ            0x8a8 (2216) thru 0xbcf (3023)	(0x328 (808) bytes)
++12: WRITE           0x210b4 (135348) thru 0x2406b (147563)	(0x2fb8 (12216) bytes) HOLE
++extend file size from 0xbd0 (3024) to 0x2406c (147564)
++13: TRUNCATE DOWN   from 0x2406c (147564) to 0x1cdd4 (118228)
++All operations - 13 - completed A-OK!
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_nomapwrite () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_nomapwrite"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -vN13 -W -S2 afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_nomapwrite "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_nommap.sh	2015-01-19 08:26:09.000000000 -0500
+@@ -0,0 +1,72 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_nommap () {
++	../fsx -vN13 -RW -S2 afile 2>&1 > output.txt
++
++	local expected_size="118228"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "3a772290abcf826038ab228e75081523929619fd  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -e ./afile.fsxgood -a ! -s .afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++mapped writes DISABLED
++Using file afile
++command line: ../fsx -vN13 -RW -S2 afile
++Seed set to 2
++truncating to largest ever: 0x2e124
++1: TRUNCATE UP     from 0x0 (0) to 0x2e124 (188708)
++2: WRITE           0xfc38 (64568) thru 0x111e3 (70115)	(0x15ac (5548) bytes)
++3: READ            0x720 (1824) thru 0xe317 (58135)	(0xdbf8 (56312) bytes)
++4: READ            0x15564 (87396) thru 0x1b647 (112199)	(0x60e4 (24804) bytes)
++5: WRITE           0x3544 (13636) thru 0x12dcb (77259)	(0xf888 (63624) bytes)
++6: TRUNCATE DOWN   from 0x2e124 (188708) to 0x16810 (92176)
++7: READ            0x11a74 (72308) thru 0x1680f (92175)	(0x4d9c (19868) bytes)
++8: TRUNCATE DOWN   from 0x16810 (92176) to 0xbd0 (3024)
++9: READ            0x91c (2332) thru 0xbcf (3023)	(0x2b4 (692) bytes)
++10: READ            0xa80 (2688) thru 0xbcf (3023)	(0x150 (336) bytes)
++11: READ            0x8a8 (2216) thru 0xbcf (3023)	(0x328 (808) bytes)
++12: WRITE           0x210b4 (135348) thru 0x2406b (147563)	(0x2fb8 (12216) bytes) HOLE
++extend file size from 0xbd0 (3024) to 0x2406c (147564)
++13: TRUNCATE DOWN   from 0x2406c (147564) to 0x1cdd4 (118228)
++All operations - 13 - completed A-OK!
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_nommap () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_nommap"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -vN13 -RW -S2 afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_nommap "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_openclosechance.sh	2015-01-19 08:26:12.000000000 -0500
+@@ -0,0 +1,81 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_openclosechance () {
++	../fsx -vN13 -c3 -S2 afile 2>&1 > output.txt
++
++	local expected_size="56948"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "0d197fef6fff76e96a8827a1194d737c403830ef  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -e ./afile.fsxgood -a ! -s .afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++Chance of close/open is 1 in 3
++Using file afile
++command line: ../fsx -vN13 -c3 -S2 afile
++Seed set to 2
++skipping zero size read
++2: WRITE           0x35bbc (220092) thru 0x3ffff (262143)	(0xa444 (42052) bytes) HOLE
++		CLOSE/OPEN
++extend file size from 0x0 (0) to 0x40000 (262144)
++2 close/open
++3: MAPWRITE        0x2e5b0 (189872) thru 0x337d7 (210903)	(0x5228 (21032) bytes)
++		CLOSE/OPEN
++3 close/open
++4: MAPREAD         0xe588 (58760) thru 0x1b0cb (110795)	(0xcb44 (52036) bytes)
++5: READ            0x11374 (70516) thru 0x13ec3 (81603)	(0x2b50 (11088) bytes)
++truncating to largest ever: 0x316ac
++6: TRUNCATE DOWN   from 0x40000 (262144) to 0x316ac (202412)
++7: READ            0x18ac (6316) thru 0x823f (33343)	(0x6994 (27028) bytes)
++8: MAPREAD         0x13e38 (81464) thru 0x1ebf7 (125943)	(0xadc0 (44480) bytes)
++extend file size from 0x316ac (202412) to 0x40000 (262144)
++truncating to largest ever: 0x40000
++9: TRUNCATE UP     from 0x316ac (202412) to 0x40000 (262144)
++10: MAPWRITE        0x398ec (235756) thru 0x3ffff (262143)	(0x6714 (26388) bytes)
++11: MAPREAD         0x3e624 (255524) thru 0x3ffff (262143)	(0x19dc (6620) bytes)
++		CLOSE/OPEN
++11 close/open
++12: READ            0x919c (37276) thru 0x9b1b (39707)	(0x980 (2432) bytes)
++13: MAPWRITE        0x1cdd0 (118224) thru 0x1eb13 (125715)	(0x1d44 (7492) bytes)
++14: TRUNCATE DOWN   from 0x40000 (262144) to 0xde74 (56948)
++All operations - 14 - completed A-OK!
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_openclosechance () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_openclosechance"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -vN13 -c3 -S2 afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_openclosechance "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_opnum.sh	2015-01-19 08:26:14.000000000 -0500
+@@ -0,0 +1,74 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_opnum () {
++	../fsx -vN13 -b3 -S1 afile 2>&1 > output.txt
++
++	local expected_size="244112"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "f37dbc993e71e59f04680831c4e12cd3f2f7ebd8  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -e ./afile.fsxgood -a ! -s .afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++Will begin at operation 3
++Using file afile
++command line: ../fsx -vN13 -b3 -S1 afile
++Seed set to 1
++extend file size from 0x0 (0) to 0x40000 (262144)
++1: TRUNCATE UP     from 0x0 (0) to 0x40000 (262144)
++2: MAPWRITE        0x3a0d8 (237784) thru 0x3ffff (262143)	(0x5f28 (24360) bytes)
++3: TRUNCATE DOWN   from 0x40000 (262144) to 0x2e344 (189252)
++4: TRUNCATE DOWN   from 0x2e344 (189252) to 0x27c14 (162836)
++5: TRUNCATE UP     from 0x27c14 (162836) to 0x3ee10 (257552)
++6: MAPREAD         0x804c (32844) thru 0xc42f (50223)	(0x43e4 (17380) bytes)
++extend file size from 0x3ee10 (257552) to 0x40000 (262144)
++7: TRUNCATE UP     from 0x3ee10 (257552) to 0x40000 (262144)
++8: MAPWRITE        0x3f83c (260156) thru 0x3ffff (262143)	(0x7c4 (1988) bytes)
++9: MAPWRITE        0x10e60 (69216) thru 0x1826b (98923)	(0x740c (29708) bytes)
++10: MAPWRITE        0x988 (2440) thru 0xc247 (49735)	(0xb8c0 (47296) bytes)
++11: MAPWRITE        0x355f4 (218612) thru 0x3ffff (262143)	(0xaa0c (43532) bytes)
++12: TRUNCATE DOWN   from 0x40000 (262144) to 0x3b990 (244112)
++13: READ            0x2816c (164204) thru 0x32653 (206419)	(0xa4e8 (42216) bytes)
++14: MAPWRITE        0x20564 (132452) thru 0x29cab (171179)	(0x9748 (38728) bytes)
++15: MAPWRITE        0x2893c (166204) thru 0x36b07 (224007)	(0xe1cc (57804) bytes)
++All operations - 15 - completed A-OK!
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_opnum () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_opnum"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -vN13 -b3 -S1 afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_opnum "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_progressinterval.sh	2015-01-19 08:26:17.000000000 -0500
+@@ -0,0 +1,64 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_progressinterval () {
++	../fsx -p2 -N13 -S1 afile 2>&1 > output.txt
++
++	local expected_size="244112"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "f37dbc993e71e59f04680831c4e12cd3f2f7ebd8  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -e ./afile.fsxgood -a ! -s .afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++Using file afile
++command line: ../fsx -p2 -N13 -S1 afile
++Seed set to 1
++truncating to largest ever: 0x40000
++2: MAPWRITE        0x3a0d8 (237784) thru 0x3ffff (262143)	(0x5f28 (24360) bytes)
++4: TRUNCATE DOWN   from 0x2e344 (189252) to 0x27c14 (162836)
++6: MAPREAD         0x804c (32844) thru 0xc42f (50223)	(0x43e4 (17380) bytes)
++8: MAPWRITE        0x3f83c (260156) thru 0x3ffff (262143)	(0x7c4 (1988) bytes)
++10: MAPWRITE        0x988 (2440) thru 0xc247 (49735)	(0xb8c0 (47296) bytes)
++12: TRUNCATE DOWN   from 0x40000 (262144) to 0x3b990 (244112)
++14: MAPWRITE        0x20564 (132452) thru 0x29cab (171179)	(0x9748 (38728) bytes)
++All operations - 15 - completed A-OK!
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_progressinterval () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_progressinterval"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -p2 -N13 -S1 afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_progressinterval "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_quieter.sh	2015-01-19 08:26:20.000000000 -0500
+@@ -0,0 +1,53 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_quieter () {
++	../fsx -qN13 -S1 afile 2>&1 > output.txt
++
++	local expected_size="244112"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "f37dbc993e71e59f04680831c4e12cd3f2f7ebd8  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -e ./afile.fsxgood -a ! -s .afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++Seed set to 1
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_quieter () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_quieter"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -qN13 -S1 afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_quieter "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_readbdy.sh	2015-01-19 08:26:24.000000000 -0500
+@@ -0,0 +1,74 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_readbdy () {
++	../fsx -vN13 -S1 -r4096 afile 2>&1 > output.txt
++
++	local expected_size="244112"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "f37dbc993e71e59f04680831c4e12cd3f2f7ebd8  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -e ./afile.fsxgood -a ! -s .afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++Using file afile
++command line: ../fsx -vN13 -S1 -r4096 afile
++Seed set to 1
++extend file size from 0x0 (0) to 0x40000 (262144)
++truncating to largest ever: 0x40000
++1: TRUNCATE UP     from 0x0 (0) to 0x40000 (262144)
++2: MAPWRITE        0x3a0d8 (237784) thru 0x3ffff (262143)	(0x5f28 (24360) bytes)
++3: TRUNCATE DOWN   from 0x40000 (262144) to 0x2e344 (189252)
++4: TRUNCATE DOWN   from 0x2e344 (189252) to 0x27c14 (162836)
++5: TRUNCATE UP     from 0x27c14 (162836) to 0x3ee10 (257552)
++6: MAPREAD         0x8000 (32768) thru 0xc3e3 (50147)	(0x43e4 (17380) bytes)
++extend file size from 0x3ee10 (257552) to 0x40000 (262144)
++7: TRUNCATE UP     from 0x3ee10 (257552) to 0x40000 (262144)
++8: MAPWRITE        0x3f83c (260156) thru 0x3ffff (262143)	(0x7c4 (1988) bytes)
++9: MAPWRITE        0x10e60 (69216) thru 0x1826b (98923)	(0x740c (29708) bytes)
++10: MAPWRITE        0x988 (2440) thru 0xc247 (49735)	(0xb8c0 (47296) bytes)
++11: MAPWRITE        0x355f4 (218612) thru 0x3ffff (262143)	(0xaa0c (43532) bytes)
++12: TRUNCATE DOWN   from 0x40000 (262144) to 0x3b990 (244112)
++13: READ            0x28000 (163840) thru 0x324e7 (206055)	(0xa4e8 (42216) bytes)
++14: MAPWRITE        0x20564 (132452) thru 0x29cab (171179)	(0x9748 (38728) bytes)
++15: MAPWRITE        0x2893c (166204) thru 0x36b07 (224007)	(0xe1cc (57804) bytes)
++All operations - 15 - completed A-OK!
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_readbdy () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_readbdy"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -vN13 -S1 -r4096 afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_readbdy "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_sanity.sh	2015-01-19 08:26:30.000000000 -0500
+@@ -0,0 +1,74 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_sanity () {
++	../fsx -vN13 -S1 afile 2>&1 > output.txt
++
++	local expected_size="244112"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "f37dbc993e71e59f04680831c4e12cd3f2f7ebd8  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -e ./afile.fsxgood -a ! -s .afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++Using file afile
++command line: ../fsx -vN13 -S1 afile
++Seed set to 1
++extend file size from 0x0 (0) to 0x40000 (262144)
++truncating to largest ever: 0x40000
++1: TRUNCATE UP     from 0x0 (0) to 0x40000 (262144)
++2: MAPWRITE        0x3a0d8 (237784) thru 0x3ffff (262143)	(0x5f28 (24360) bytes)
++3: TRUNCATE DOWN   from 0x40000 (262144) to 0x2e344 (189252)
++4: TRUNCATE DOWN   from 0x2e344 (189252) to 0x27c14 (162836)
++5: TRUNCATE UP     from 0x27c14 (162836) to 0x3ee10 (257552)
++6: MAPREAD         0x804c (32844) thru 0xc42f (50223)	(0x43e4 (17380) bytes)
++extend file size from 0x3ee10 (257552) to 0x40000 (262144)
++7: TRUNCATE UP     from 0x3ee10 (257552) to 0x40000 (262144)
++8: MAPWRITE        0x3f83c (260156) thru 0x3ffff (262143)	(0x7c4 (1988) bytes)
++9: MAPWRITE        0x10e60 (69216) thru 0x1826b (98923)	(0x740c (29708) bytes)
++10: MAPWRITE        0x988 (2440) thru 0xc247 (49735)	(0xb8c0 (47296) bytes)
++11: MAPWRITE        0x355f4 (218612) thru 0x3ffff (262143)	(0xaa0c (43532) bytes)
++12: TRUNCATE DOWN   from 0x40000 (262144) to 0x3b990 (244112)
++13: READ            0x2816c (164204) thru 0x32653 (206419)	(0xa4e8 (42216) bytes)
++14: MAPWRITE        0x20564 (132452) thru 0x29cab (171179)	(0x9748 (38728) bytes)
++15: MAPWRITE        0x2893c (166204) thru 0x36b07 (224007)	(0xe1cc (57804) bytes)
++All operations - 15 - completed A-OK!
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_sanity () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_sanity"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -vN13 -S1 afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_sanity "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_startingop.sh	2015-01-19 08:26:34.000000000 -0500
+@@ -0,0 +1,69 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_startingop () {
++	../fsx -N13 -D5 -S1 afile 2>&1 > output.txt
++
++	local expected_size="244112"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "f37dbc993e71e59f04680831c4e12cd3f2f7ebd8  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -e ./afile.fsxgood -a ! -s .afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++Using file afile
++command line: ../fsx -N13 -D5 -S1 afile
++Seed set to 1
++truncating to largest ever: 0x40000
++5: TRUNCATE UP     from 0x27c14 (162836) to 0x3ee10 (257552)
++6: MAPREAD         0x804c (32844) thru 0xc42f (50223)	(0x43e4 (17380) bytes)
++extend file size from 0x3ee10 (257552) to 0x40000 (262144)
++7: TRUNCATE UP     from 0x3ee10 (257552) to 0x40000 (262144)
++8: MAPWRITE        0x3f83c (260156) thru 0x3ffff (262143)	(0x7c4 (1988) bytes)
++9: MAPWRITE        0x10e60 (69216) thru 0x1826b (98923)	(0x740c (29708) bytes)
++10: MAPWRITE        0x988 (2440) thru 0xc247 (49735)	(0xb8c0 (47296) bytes)
++11: MAPWRITE        0x355f4 (218612) thru 0x3ffff (262143)	(0xaa0c (43532) bytes)
++12: TRUNCATE DOWN   from 0x40000 (262144) to 0x3b990 (244112)
++13: READ            0x2816c (164204) thru 0x32653 (206419)	(0xa4e8 (42216) bytes)
++14: MAPWRITE        0x20564 (132452) thru 0x29cab (171179)	(0x9748 (38728) bytes)
++15: MAPWRITE        0x2893c (166204) thru 0x36b07 (224007)	(0xe1cc (57804) bytes)
++All operations - 15 - completed A-OK!
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_startingop () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_startingop"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -N13 -D5 -S1 afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_startingop "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_style.sh	2015-01-19 08:26:37.000000000 -0500
+@@ -0,0 +1,78 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_style () {
++	../fsx -vN13 -S1 -s1 afile 2>&1 > output.txt
++
++	local expected_size="224008"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "4a62450f0461db728dd17fee71c0222dfbd13f8c  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -e ./afile.fsxgood -a ! -s .afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++Using file afile
++command line: ../fsx -vN13 -S1 -s1 afile
++Seed set to 1
++extend file size from 0x0 (0) to 0x40000 (262144)
++truncating to largest ever: 0x40000
++1: TRUNCATE UP     from 0x0 (0) to 0x40000 (262144)
++2: MAPWRITE        0x3a0d8 (237784) thru 0x3ffff (262143)	(0x5f28 (24360) bytes)
++3: TRUNCATE DOWN   from 0x40000 (262144) to 0x9850 (38992)
++4: TRUNCATE DOWN   from 0x9850 (38992) to 0x1454 (5204)
++5: TRUNCATE UP     from 0x1454 (5204) to 0xaffc (45052)
++6: MAPREAD         0x56c8 (22216) thru 0x9aab (39595)	(0x43e4 (17380) bytes)
++extend file size from 0xaffc (45052) to 0x40000 (262144)
++7: TRUNCATE UP     from 0xaffc (45052) to 0x40000 (262144)
++8: MAPWRITE        0x3f83c (260156) thru 0x3ffff (262143)	(0x7c4 (1988) bytes)
++9: MAPWRITE        0x10e60 (69216) thru 0x1826b (98923)	(0x740c (29708) bytes)
++10: MAPWRITE        0x988 (2440) thru 0xc247 (49735)	(0xb8c0 (47296) bytes)
++11: MAPWRITE        0x355f4 (218612) thru 0x3ffff (262143)	(0xaa0c (43532) bytes)
++12: TRUNCATE DOWN   from 0x40000 (262144) to 0x67b8 (26552)
++13: READ            0x3bac (15276) thru 0x67b7 (26551)	(0x2c0c (11276) bytes)
++extend file size from 0x67b8 (26552) to 0x29cac (171180)
++14: TRUNCATE UP     from 0x67b8 (26552) to 0x29cac (171180)
++15: MAPWRITE        0x20564 (132452) thru 0x29cab (171179)	(0x9748 (38728) bytes)
++extend file size from 0x29cac (171180) to 0x36b08 (224008)
++16: TRUNCATE UP     from 0x29cac (171180) to 0x36b08 (224008)
++17: MAPWRITE        0x2893c (166204) thru 0x36b07 (224007)	(0xe1cc (57804) bytes)
++All operations - 17 - completed A-OK!
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_style () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_style"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -vN13 -S1 -s1 afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_style "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_truncbdy.sh	2015-01-19 08:26:43.000000000 -0500
+@@ -0,0 +1,74 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_truncbdy () {
++	../fsx -vN13 -S1 -t4096 afile 2>&1 > output.txt
++
++	local expected_size="241664"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "00a484c1d46a53b36e644b62ee4454e8fe2a1651  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -e ./afile.fsxgood -a ! -s .afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++Using file afile
++command line: ../fsx -vN13 -S1 -t4096 afile
++Seed set to 1
++extend file size from 0x0 (0) to 0x40000 (262144)
++truncating to largest ever: 0x40000
++1: TRUNCATE UP     from 0x0 (0) to 0x40000 (262144)
++2: MAPWRITE        0x3a0d8 (237784) thru 0x3ffff (262143)	(0x5f28 (24360) bytes)
++3: TRUNCATE DOWN   from 0x40000 (262144) to 0x2e000 (188416)
++4: TRUNCATE DOWN   from 0x2e000 (188416) to 0x27000 (159744)
++5: TRUNCATE UP     from 0x27000 (159744) to 0x3e000 (253952)
++6: MAPREAD         0xf88c (63628) thru 0x13c6f (81007)	(0x43e4 (17380) bytes)
++extend file size from 0x3e000 (253952) to 0x40000 (262144)
++7: TRUNCATE UP     from 0x3e000 (253952) to 0x40000 (262144)
++8: MAPWRITE        0x3f83c (260156) thru 0x3ffff (262143)	(0x7c4 (1988) bytes)
++9: MAPWRITE        0x10e60 (69216) thru 0x1826b (98923)	(0x740c (29708) bytes)
++10: MAPWRITE        0x988 (2440) thru 0xc247 (49735)	(0xb8c0 (47296) bytes)
++11: MAPWRITE        0x355f4 (218612) thru 0x3ffff (262143)	(0xaa0c (43532) bytes)
++12: TRUNCATE DOWN   from 0x40000 (262144) to 0x3b000 (241664)
++13: READ            0x2bfdc (180188) thru 0x364c3 (222403)	(0xa4e8 (42216) bytes)
++14: MAPWRITE        0x20564 (132452) thru 0x29cab (171179)	(0x9748 (38728) bytes)
++15: MAPWRITE        0x2893c (166204) thru 0x36b07 (224007)	(0xe1cc (57804) bytes)
++All operations - 15 - completed A-OK!
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_truncbdy () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_truncbdy"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -vN13 -S1 -t4096 afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_truncbdy "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_upperoplen.sh	2015-01-19 08:26:46.000000000 -0500
+@@ -0,0 +1,76 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_upperoplen () {
++	../fsx -vN13 -o1000 -S1 afile 2>&1 > output.txt
++
++	local expected_size="244112"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "c5dc3fb7efe4ff2446cc8652785a2d243f26e22a  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -e ./afile.fsxgood -a ! -s .afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++Using file afile
++command line: ../fsx -vN13 -o1000 -S1 afile
++Seed set to 1
++extend file size from 0x0 (0) to 0x3a2b4 (238260)
++truncating to largest ever: 0x3a2b4
++1: TRUNCATE UP     from 0x0 (0) to 0x3a2b4 (238260)
++2: MAPWRITE        0x3a0d8 (237784) thru 0x3a2b3 (238259)	(0x1dc (476) bytes)
++3: TRUNCATE DOWN   from 0x3a2b4 (238260) to 0x2e344 (189252)
++4: TRUNCATE DOWN   from 0x2e344 (189252) to 0x27c14 (162836)
++truncating to largest ever: 0x3ee10
++5: TRUNCATE UP     from 0x27c14 (162836) to 0x3ee10 (257552)
++6: MAPREAD         0x804c (32844) thru 0x805f (32863)	(0x14 (20) bytes)
++extend file size from 0x3ee10 (257552) to 0x3fb68 (260968)
++truncating to largest ever: 0x3fb68
++7: TRUNCATE UP     from 0x3ee10 (257552) to 0x3fb68 (260968)
++8: MAPWRITE        0x3f83c (260156) thru 0x3fb67 (260967)	(0x32c (812) bytes)
++9: MAPWRITE        0x10e60 (69216) thru 0x10f63 (69475)	(0x104 (260) bytes)
++10: MAPWRITE        0x988 (2440) thru 0xcbb (3259)	(0x334 (820) bytes)
++11: MAPWRITE        0x355f4 (218612) thru 0x35677 (218743)	(0x84 (132) bytes)
++12: TRUNCATE DOWN   from 0x3fb68 (260968) to 0x3b990 (244112)
++13: READ            0x2816c (164204) thru 0x2829b (164507)	(0x130 (304) bytes)
++14: MAPWRITE        0x20564 (132452) thru 0x206fb (132859)	(0x198 (408) bytes)
++15: MAPWRITE        0x2893c (166204) thru 0x28a8b (166539)	(0x150 (336) bytes)
++All operations - 15 - completed A-OK!
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_upperoplen () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_upperoplen"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -vN13 -o1000 -S1 afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_upperoplen "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_writebdy.sh	2015-01-19 08:26:49.000000000 -0500
+@@ -0,0 +1,76 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_writebdy () {
++	../fsx -vN13 -S1 -w4096 afile 2>&1 > output.txt
++
++	local expected_size="244112"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "2ef7c7f901e24fee695fa57e243e3b0e4899a2ea  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -e ./afile.fsxgood -a ! -s .afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++Using file afile
++command line: ../fsx -vN13 -S1 -w4096 afile
++Seed set to 1
++extend file size from 0x0 (0) to 0x3ff28 (261928)
++truncating to largest ever: 0x3ff28
++1: TRUNCATE UP     from 0x0 (0) to 0x3ff28 (261928)
++2: MAPWRITE        0x3a000 (237568) thru 0x3ff27 (261927)	(0x5f28 (24360) bytes)
++3: TRUNCATE DOWN   from 0x3ff28 (261928) to 0x2e344 (189252)
++4: TRUNCATE DOWN   from 0x2e344 (189252) to 0x27c14 (162836)
++5: TRUNCATE UP     from 0x27c14 (162836) to 0x3ee10 (257552)
++6: MAPREAD         0x804c (32844) thru 0xc42f (50223)	(0x43e4 (17380) bytes)
++extend file size from 0x3ee10 (257552) to 0x3f7c4 (260036)
++7: TRUNCATE UP     from 0x3ee10 (257552) to 0x3f7c4 (260036)
++8: MAPWRITE        0x3f000 (258048) thru 0x3f7c3 (260035)	(0x7c4 (1988) bytes)
++9: MAPWRITE        0x10000 (65536) thru 0x1740b (95243)	(0x740c (29708) bytes)
++10: MAPWRITE        0x0 (0) thru 0xb8bf (47295)	(0xb8c0 (47296) bytes)
++extend file size from 0x3f7c4 (260036) to 0x3fa0c (260620)
++11: TRUNCATE UP     from 0x3f7c4 (260036) to 0x3fa0c (260620)
++12: MAPWRITE        0x35000 (217088) thru 0x3fa0b (260619)	(0xaa0c (43532) bytes)
++13: TRUNCATE DOWN   from 0x3fa0c (260620) to 0x3b990 (244112)
++14: READ            0x2816c (164204) thru 0x32653 (206419)	(0xa4e8 (42216) bytes)
++15: MAPWRITE        0x20000 (131072) thru 0x29747 (169799)	(0x9748 (38728) bytes)
++16: MAPWRITE        0x28000 (163840) thru 0x361cb (221643)	(0xe1cc (57804) bytes)
++All operations - 16 - completed A-OK!
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_writebdy () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_writebdy"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -vN13 -S1 -w4096 afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_writebdy "1"
++exit ${?}
+--- /dev/null	2015-01-19 08:20:10.000000000 -0500
++++ fsx_smoketest_xmlout.sh	2015-01-19 08:26:54.000000000 -0500
+@@ -0,0 +1,74 @@
++#!/bin/sh
++#
++# Copyright 2015 Google Inc.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++fsx_smoketest_xmlout () {
++	../fsx -vN13 -S1 -x afile 2>&1 > output.txt
++
++	local expected_size="244112"
++	eval $(stat -s afile)
++	[ ${st_size} -eq "${expected_size}" ]
++
++	echo "f37dbc993e71e59f04680831c4e12cd3f2f7ebd8  afile" | shasum -c -
++	[ -s ./afile.fsxlog ]
++	[ -e ./afile.fsxgood -a ! -s .afile.fsxgood ]
++
++	diff output.txt - 2>&1 <<HEREDOCUMENT
++Using file afile
++command line: ../fsx -vN13 -S1 -x afile
++Seed set to 1
++extend file size from 0x0 (0) to 0x40000 (262144)
++truncating to largest ever: 0x40000
++1: TRUNCATE UP     from 0x0 (0) to 0x40000 (262144)
++2: MAPWRITE        0x3a0d8 (237784) thru 0x3ffff (262143)	(0x5f28 (24360) bytes)
++3: TRUNCATE DOWN   from 0x40000 (262144) to 0x2e344 (189252)
++4: TRUNCATE DOWN   from 0x2e344 (189252) to 0x27c14 (162836)
++5: TRUNCATE UP     from 0x27c14 (162836) to 0x3ee10 (257552)
++6: MAPREAD         0x804c (32844) thru 0xc42f (50223)	(0x43e4 (17380) bytes)
++extend file size from 0x3ee10 (257552) to 0x40000 (262144)
++7: TRUNCATE UP     from 0x3ee10 (257552) to 0x40000 (262144)
++8: MAPWRITE        0x3f83c (260156) thru 0x3ffff (262143)	(0x7c4 (1988) bytes)
++9: MAPWRITE        0x10e60 (69216) thru 0x1826b (98923)	(0x740c (29708) bytes)
++10: MAPWRITE        0x988 (2440) thru 0xc247 (49735)	(0xb8c0 (47296) bytes)
++11: MAPWRITE        0x355f4 (218612) thru 0x3ffff (262143)	(0xaa0c (43532) bytes)
++12: TRUNCATE DOWN   from 0x40000 (262144) to 0x3b990 (244112)
++13: READ            0x2816c (164204) thru 0x32653 (206419)	(0xa4e8 (42216) bytes)
++14: MAPWRITE        0x20564 (132452) thru 0x29cab (171179)	(0x9748 (38728) bytes)
++15: MAPWRITE        0x2893c (166204) thru 0x36b07 (224007)	(0xe1cc (57804) bytes)
++All operations - 15 - completed A-OK!
++HEREDOCUMENT
++}
++
++run_fsx_smoketest_xmlout () {
++	local myindex="${1}"
++	local atest="fsx_smoketest_xmlout"
++	mkdir -p tmp
++	rm -f afile afile.* tmp/afile.*
++	(
++		set -ue
++		${atest}
++	)
++	if [ "0" -ne "${?}" ] ; then
++		printf "not "
++	fi
++
++	printf "ok %d - %s " "${myindex}" "${atest}"
++	printf "%s\n" "fsx -vN13 -S1 -x afile"
++	return 0
++}
++
++printf "%d..%d\n" "1" "1"
++run_fsx_smoketest_xmlout "1"
++exit ${?}

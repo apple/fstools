@@ -1,0 +1,152 @@
+diff --git a/src/fsx/fsx.c b/src/fsx/fsx.c
+index f5caaa2..d4dd44f 100644
+--- a/src/fsx/fsx.c
++++ b/src/fsx/fsx.c
+@@ -48,12 +48,11 @@
+  *
+  */
+ 
+-#include <sys/xattr.h>
++#include "fsx.h"
+ #include <getopt.h>
+ #include <sys/types.h>
+ #include <sys/stat.h>
+ #include <time.h>
+-#include <sys/paths.h>
+ #include <sys/param.h>
+ #ifdef _UWIN
+ # include <limits.h>
+@@ -754,15 +753,15 @@ doread(unsigned offset, unsigned size)
+ 			failure(140);
+ 		}
+ 				
+-		if (cache_off && (fcntl(fd, F_NOCACHE, 1) != 0)) { // turn data caching off
++		if (cache_off && (fsx_caching_off(fd) != 0)) { // turn data caching off
+ 			logdump();
+-			prterr("doread: fcntl(F_NOCACHE, 1)");
++			prterr("doread: fsx_caching_off()");
+ 			failure(201);
+ 		}
+ 		iret = read(fd, temp_buf, size);
+-		if (cache_off && (fcntl(fd, F_NOCACHE, 0) != 0)) {
++		if (cache_off && (fsx_caching_on(fd) != 0)) {
+ 			logdump();
+-			prterr("doread: fcntl(F_NOCACHE, 0)");
++			prterr("doread: fsx_caching_on");
+ 			failure(201);
+ 		}
+ 	} else {
+@@ -947,9 +946,9 @@ dowrite(unsigned offset, unsigned size)
+ 					prterr("dowrite: lseek");
+ 					failure(150);
+ 				}
+-				if (cache_off && (fcntl(fd, F_NOCACHE, 1) != 0)) { // turn data caching off
++				if (cache_off && (fsx_caching_off(fd) != 0)) { // turn data caching off
+ 					logdump();
+-					prterr("dowrite: fcntl(F_NOCACHE, 1)");
++					prterr("dowrite: fsx_caching_off");
+ 					failure(201);
+ 				}
+ 				iret = write(fd, good_buf + file_size, offset - file_size);
+@@ -964,9 +963,9 @@ dowrite(unsigned offset, unsigned size)
+ 					}
+ 					failure(151);
+ 				}
+-				if (cache_off && (fcntl(fd, F_NOCACHE, 0) != 0)) {
++				if (cache_off && (fsx_caching_on(fd) != 0)) {
+ 					logdump();
+-					prterr("dowrite: fcntl(F_NOCACHE, 0)");
++					prterr("dowrite: fsx_caching_on");
+ 					failure(201);
+ 				}
+ 			}
+@@ -994,9 +993,9 @@ dowrite(unsigned offset, unsigned size)
+ 			prterr("dowrite: lseek");
+ 			failure(150);
+ 		}
+-		if (cache_off && (fcntl(fd, F_NOCACHE, 1) != 0)) { // turn data caching off
++		if (cache_off && (fsx_caching_off(fd) != 0)) { // turn data caching off
+ 			logdump();
+-			prterr("dowrite: fcntl(F_NOCACHE, 1)");
++			prterr("dowrite: fsx_caching_off");
+ 			failure(201);
+ 		}
+ 		iret = write(fd, good_buf + offset, size);
+@@ -1011,9 +1010,9 @@ dowrite(unsigned offset, unsigned size)
+ 			}
+ 			failure(151);
+ 		}
+-		if (cache_off && (fcntl(fd, F_NOCACHE, 0) != 0)) {
++		if (cache_off && (fsx_caching_on(fd) != 0)) {
+ 			logdump();
+-			prterr("dowrite: fcntl(F_NOCACHE, 0)");
++			prterr("dowrite: fsx_caching_on");
+ 			failure(201);
+ 		}
+ 	} else {
+diff --git a/src/fsx/fsx.h b/src/fsx/fsx.h
+new file mode 100644
+index 0000000..6e518b4
+--- /dev/null
++++ b/src/fsx/fsx.h
+@@ -0,0 +1,60 @@
++/*
++ * Copyright 2015 Google Inc.
++ *
++ * @APPLE_LICENSE_HEADER_START@
++ * 
++ * This file contains Original Code and/or Modifications of Original Code
++ * as defined in and that are subject to the Apple Public Source License
++ * Version 2.0 (the 'License'). You may not use this file except in
++ * compliance with the License. Please obtain a copy of the License at
++ * http://www.opensource.apple.com/apsl/ and read it before using this
++ * file.
++ * 
++ * The Original Code and all software distributed under the License are
++ * distributed on an 'AS IS' basis, WITHOUT WARRANTY OF ANY KIND, EITHER
++ * EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
++ * INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE, QUIET ENJOYMENT OR NON-INFRINGEMENT.
++ * Please see the License for the specific language governing rights and
++ * limitations under the License.
++ * 
++ * @APPLE_LICENSE_HEADER_END@
++ */
++
++#ifdef __APPLE__
++#include <sys/xattr.h>
++#include <sys/paths.h>
++#define fsx_caching_on(_fd) (fcntl(_fd, F_NOCACHE, 0))
++#define fsx_caching_off(_fd) (fcntl(_fd, F_NOCACHE, 1))
++#else /* __APPLE__ */
++#include <errno.h>
++#include <fcntl.h>
++#include <inttypes.h>
++#include <unistd.h>
++#ifdef _PC_XATTR_SIZE_BITS
++#include <sys/xattr.h>
++#else /* _PC_XATTR_SIZE_BIT */
++int fgetxattr(int, const char*, void*, size_t, uint32_t, int);
++int fsetxattr(int, const char*, void*, size_t, uint32_t, int);
++int fremovexattr(int, const char*, int);
++#define fremovexattr(_a, _b, _c) (errno = ENOSYS, (int)-1)
++#define fsetxattr(_a, _b, _c, _d, _e, _f) (errno = ENOSYS, (int)-1)
++#define fgetxattr(_a, _b, _c, _d, _e, _f) (errno = ENOSYS, (int)-1)
++#endif /* _PC_XATTR_SIZE_BIT */
++
++#ifndef _PATH_FORKSPECIFIER
++#define _PATH_FORKSPECIFIER "."
++#endif
++
++#ifdef POSIX_FADV_WILLNEED
++#define fsx_caching_on(_fd) (posix_fadvise(fd, 0, 0, POSIX_FADV_WILLNEED))
++#else
++#define fsx_caching_on(_fd) (errno = ENOSYS, (int)-1)
++#endif
++
++#ifdef POSIX_FADV_DONTNEED
++#define fsx_caching_off(_fd) (posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED))
++#else
++#define fsx_caching_off(_fd) (errno = ENOSYS, (int)-1)
++#endif
++#endif /* __APPLE__ */
