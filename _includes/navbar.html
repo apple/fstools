@@ -1,3 +1,4 @@
+{% assign page_url_parts = page.url | split: '/' %}
 <nav class="navbar navbar-default">
   <div class="container">
     <div class="navbar-header">
@@ -7,18 +8,18 @@
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>
       </button>
-      <a class="navbar-brand" href="{{ '/' | prepend: relative_root_url }}">Filesystem Tools</a>
+      <a class="navbar-brand" href="{{ '/' | prepend: site.baseurl }}">{{ site.title | escape }}</a>
     </div>
     <div class="collapse navbar-collapse" id="main-navbar">
       <ul class="nav navbar-nav">
         <li class="dropdown{% if page_url_parts[1] == 'tools' %} active{% endif %}">
           <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Tools <span class="caret"></span></a>
           <ul class="dropdown-menu">
-            <li><a href="{{ '/tools/fstorture/' | prepend: relative_root_url }}">fstorture</a></li>
-            <li><a href="{{ '/tools/fsx/' | prepend: relative_root_url }}">fsx</a></li>
+            <li><a href="{{ '/tools/fstorture/' | prepend: site.baseurl }}">fstorture</a></li>
+            <li><a href="{{ '/tools/fsx/' | prepend: site.baseurl }}">fsx</a></li>
           </ul>
         </li>
-        <li{% if page_url_parts[1] == 'development' %} class="active"{% endif %}><a href="{{ '/development/' | prepend: relative_root_url }}">Development</a></li>
+        <li{% if page_url_parts[1] == 'development' %} class="active"{% endif %}><a href="{{ '/development/' | prepend: site.baseurl }}">Development</a></li>
         <li><a href="https://lists.macosforge.org/mailman/listinfo/fstools-devel">Mailing List</a></li>
       </ul>
     </div>
