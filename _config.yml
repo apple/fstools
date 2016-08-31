@@ -5,6 +5,11 @@ defaults:
       path: ""
     values:
       layout: "default"
+exclude:
+  - .gitignore
+  - Gemfile
+  - Gemfile.lock
+  - README.md
 permalink: pretty
 title: "Filesystem Tools"
 url: "https://macosforge.github.io"
